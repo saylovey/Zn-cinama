@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZN Cinema - 현재 상영작</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800;900&family=Roboto:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <h1 class="logo"><span class="logo-zn">Zn</span> <span class="logo-cinema">CINEMA</span></h1>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>영화 정보를 불러오는 중...</p>
+            </div>
+
+            <div class="error" id="error" style="display: none;">
+                <p>영화 정보를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.</p>
+            </div>
+
+            <!-- 메인 컨텐츠 래퍼 -->
+            <div class="main-content-wrapper" id="mainContentWrapper" style="display: none;">
+                <!-- 영화 목록 섹션 (왼쪽 세로) -->
+                <section class="movies-section" id="moviesSection">
+                    <div class="section-header">
+                        <h2 class="section-title" id="sectionTitle">현재 상영작</h2>
+                        <div class="section-tabs">
+                            <button class="tab-btn active" id="tabNowPlaying" onclick="switchTab('nowPlaying')">현재 상영작</button>
+                            <button class="tab-btn" id="tabPopular" onclick="switchTab('popular')">인기순</button>
+                            <button class="tab-btn" id="tabBooking" onclick="switchTab('booking')">예매율순</button>
+                        </div>
+                        <div class="genre-filter">
+                            <select class="genre-select" id="genreSelect" onchange="filterByGenre(this.value)">
+                                <option value="all">전체 장르</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="movies-column-container">
+                        <div class="movies-column" id="moviesGrid">
+                            <!-- 영화 카드들이 여기에 동적으로 추가됩니다 -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 메인 영화 섹션 (히어로) -->
+                <section class="hero-section" id="featuredMovie">
+                    <div class="hero-backdrop" id="heroBackdrop"></div>
+                    <div class="hero-content">
+                        <div class="hero-wrapper">
+                            <div class="hero-info">
+                                <div class="hero-title-wrapper">
+                                    <h1 class="hero-title" id="featuredMovieTitle"></h1>
+                                    <button class="btn-booking-title" onclick="showBookingModal()">예매하기</button>
+                                </div>
+                                <div class="hero-meta">
+                                    <span class="hero-rating" id="featuredRating"></span>
+                                    <span class="hero-year" id="heroYear"></span>
+                                </div>
+                                <p class="hero-overview" id="featuredMovieOverview"></p>
+                                <div class="hero-actions">
+                                    <div class="hero-video-container" id="heroVideoContainer">
+                                        <div class="video-placeholder" id="heroVideoPlaceholder">
+                                            <div class="play-icon">▶</div>
+                                            <p>트레일러를 불러오는 중...</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hero-fade"></div>
+                </section>
+            </div>
+
+            <!-- 비디오 모달 -->
+            <div class="video-modal" id="videoModal" style="display: none;">
+                <div class="video-modal-content">
+                    <button class="video-modal-close" onclick="closeTrailer()">×</button>
+                    <div class="video-container" id="videoContainer">
+                        <div class="video-placeholder" id="videoPlaceholder">
+                            <div class="play-icon">▶</div>
+                            <p>트레일러를 불러오는 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 예매하기 모달 -->
+            <div class="booking-modal" id="bookingModal" style="display: none;">
+                <div class="booking-modal-content">
+                    <button class="booking-modal-close" onclick="closeBookingModal()">×</button>
+                    <h2 class="booking-modal-title">🎬 어디서 보실래요?</h2>
+                    <p class="booking-modal-subtitle">원하시는 극장을 선택해주세요</p>
+                    <div class="booking-options">
+                        <button class="booking-option-btn" onclick="openBookingSite('cgv')">
+                            <div class="booking-option-logo">CGV</div>
+                            <div class="booking-option-text">CGV에서 예매하기</div>
+                        </button>
+                        <button class="booking-option-btn" onclick="openBookingSite('lotte')">
+                            <div class="booking-option-logo">롯데시네마</div>
+                            <div class="booking-option-text">롯데시네마에서 예매하기</div>
+                        </button>
+                        <button class="booking-option-btn" onclick="openBookingSite('megabox')">
+                            <div class="booking-option-logo">메가박스</div>
+                            <div class="booking-option-text">메가박스에서 예매하기</div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2024 ZN Cinema. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
