@@ -160,7 +160,7 @@ body {
 .hero-video-container {
     position: relative;
     width: 100%;
-    max-width: 1000px;
+    max-width: 800px;
     aspect-ratio: 16 / 9;
     border-radius: 8px;
     overflow: hidden;
@@ -910,13 +910,13 @@ body {
 /* 웹 버전 - 큰 화면에서 영상 크기 증가 */
 @media (min-width: 1024px) {
     .hero-video-container {
-        max-width: 1200px;
+        max-width: 1000px;
     }
 }
 
 @media (min-width: 1440px) {
     .hero-video-container {
-        max-width: 1400px;
+        max-width: 1200px;
     }
 }
 
