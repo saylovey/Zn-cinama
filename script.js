@@ -420,34 +420,41 @@ async function displayFeaturedMovie(movie) {
             const playerDiv = document.getElementById('youtube-player');
             
             // YouTube IFrame API가 로드되었는지 확인
-            if (typeof YT !== 'undefined' && YT.Player && youtubeAPIReady) {
-                youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
-            } else if (typeof YT !== 'undefined' && YT.Player) {
-                // API는 로드되었지만 ready 콜백이 아직 호출되지 않았을 수 있음
-                // 잠시 대기 후 재시도
-                const checkAPIReady = setInterval(() => {
-                    if (youtubeAPIReady || (typeof YT !== 'undefined' && YT.Player)) {
-                        clearInterval(checkAPIReady);
-                        youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
-                    }
-                }, 100);
-                
-                // 3초 후에도 준비되지 않으면 iframe으로 대체
-                setTimeout(() => {
-                    clearInterval(checkAPIReady);
-                    if (!youtubePlayer) {
-                        console.warn('YouTube API 로드 대기 시간 초과, iframe으로 대체');
-                        const iframe = document.createElement('iframe');
-                        iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=1&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&start=0`;
-                        iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-                        iframe.allowFullscreen = true;
-                        iframe.setAttribute('allowfullscreen', 'true');
-                        iframe.style.width = '100%';
-                        iframe.style.height = '100%';
-                        playerDiv.innerHTML = '';
-                        playerDiv.appendChild(iframe);
-                    }
-                }, 3000);
+            if (typeof YT !== 'undefined' && YT.Player) {
+                // API가 로드되었으면 플레이어 생성 시도
+                if (youtubeAPIReady) {
+                    youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
+                } else {
+                    // API는 로드되었지만 ready 콜백이 아직 호출되지 않았을 수 있음
+                    // 잠시 대기 후 재시도
+                    let checkCount = 0;
+                    const maxChecks = 30; // 3초간 대기 (100ms * 30)
+                    const checkAPIReady = setInterval(() => {
+                        checkCount++;
+                        if (youtubeAPIReady) {
+                            clearInterval(checkAPIReady);
+                            youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
+                        } else if (checkCount >= maxChecks) {
+                            clearInterval(checkAPIReady);
+                            // API가 준비되지 않았지만 강제로 플레이어 생성 시도
+                            console.warn('YouTube API ready 콜백 대기 시간 초과, 강제 생성 시도');
+                            youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
+                            if (!youtubePlayer) {
+                                // 플레이어 생성 실패 시 iframe으로 대체
+                                console.warn('플레이어 생성 실패, iframe으로 대체');
+                                const iframe = document.createElement('iframe');
+                                iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=1&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&start=0`;
+                                iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+                                iframe.allowFullscreen = true;
+                                iframe.setAttribute('allowfullscreen', 'true');
+                                iframe.style.width = '100%';
+                                iframe.style.height = '100%';
+                                playerDiv.innerHTML = '';
+                                playerDiv.appendChild(iframe);
+                            }
+                        }
+                    }, 100);
+                }
             } else {
                 // API가 아직 로드되지 않았으면 iframe으로 대체 (자동재생 강제)
                 console.warn('YouTube IFrame API가 로드되지 않음, iframe으로 대체');
@@ -785,8 +792,8 @@ function setupAutoScroll() {
     });
 }
 
-// YouTube IFrame API 준비 콜백
-function onYouTubeIframeAPIReady() {
+// YouTube IFrame API 준비 콜백 (전역 함수로 설정)
+window.onYouTubeIframeAPIReady = function() {
     youtubeAPIReady = true;
     console.log('YouTube IFrame API 준비 완료');
     
@@ -794,10 +801,10 @@ function onYouTubeIframeAPIReady() {
     if (currentVideoKey && heroVideoContainerElement) {
         const playerDiv = document.getElementById('youtube-player');
         if (playerDiv && !youtubePlayer) {
-            createYouTubePlayer('youtube-player', currentVideoKey);
+            youtubePlayer = createYouTubePlayer('youtube-player', currentVideoKey);
         }
     }
-}
+};
 
 // 사용자 클릭 시 음소거 해제를 위한 헬퍼 함수
 function setupUnmuteOnClick(player) {
@@ -847,71 +854,95 @@ function createYouTubePlayer(containerId, videoKey) {
             events: {
                 onReady: function(event) {
                     console.log('YouTube 플레이어 준비 완료');
+                    const player = event.target;
+                    
                     // 플레이어 준비되면 자동 재생 시작
                     try {
-                        event.target.playVideo();
-                        // 재생 확인 및 재시도 (여러 번 시도)
-                        let retryCount = 0;
-                        const maxRetries = 5;
-                        const checkPlayInterval = setInterval(() => {
-                            const state = event.target.getPlayerState();
-                            if (state === YT.PlayerState.PLAYING) {
-                                clearInterval(checkPlayInterval);
-                                console.log('영상 재생 성공');
+                        // 약간의 지연 후 재생 시도 (플레이어가 완전히 준비될 때까지 대기)
+                        setTimeout(() => {
+                            try {
+                                player.playVideo();
                                 
-                                // 재생 성공 후 자동으로 음소거 해제 시도
-                                if (event.target.isMuted()) {
-                                    // 여러 번 시도 (브라우저 정책상 실패할 수 있음)
-                                    let unmuteRetryCount = 0;
-                                    const maxUnmuteRetries = 10;
-                                    const unmuteInterval = setInterval(() => {
-                                        try {
-                                            if (event.target.isMuted()) {
-                                                event.target.unMute();
-                                                // 음소거 해제 확인
-                                                setTimeout(() => {
-                                                    if (!event.target.isMuted()) {
-                                                        clearInterval(unmuteInterval);
-                                                        console.log('음소거 자동 해제 성공');
-                                                    } else if (unmuteRetryCount < maxUnmuteRetries) {
-                                                        unmuteRetryCount++;
-                                                    } else {
-                                                        clearInterval(unmuteInterval);
-                                                        console.info('자동 음소거 해제 실패. 페이지를 클릭하면 소리가 나옵니다.');
-                                                        // 실패 시 사용자 클릭 대기
-                                                        setupUnmuteOnClick(event.target);
+                                // 재생 확인 및 재시도 (여러 번 시도)
+                                let retryCount = 0;
+                                const maxRetries = 10;
+                                const checkPlayInterval = setInterval(() => {
+                                    try {
+                                        const state = player.getPlayerState();
+                                        if (state === YT.PlayerState.PLAYING) {
+                                            clearInterval(checkPlayInterval);
+                                            console.log('영상 재생 성공');
+                                            
+                                            // 재생 성공 후 자동으로 음소거 해제 시도
+                                            if (player.isMuted && player.isMuted()) {
+                                                // 여러 번 시도 (브라우저 정책상 실패할 수 있음)
+                                                let unmuteRetryCount = 0;
+                                                const maxUnmuteRetries = 10;
+                                                const unmuteInterval = setInterval(() => {
+                                                    try {
+                                                        if (player.isMuted && player.isMuted()) {
+                                                            player.unMute();
+                                                            // 음소거 해제 확인
+                                                            setTimeout(() => {
+                                                                if (!player.isMuted || !player.isMuted()) {
+                                                                    clearInterval(unmuteInterval);
+                                                                    console.log('음소거 자동 해제 성공');
+                                                                } else if (unmuteRetryCount < maxUnmuteRetries) {
+                                                                    unmuteRetryCount++;
+                                                                } else {
+                                                                    clearInterval(unmuteInterval);
+                                                                    console.info('자동 음소거 해제 실패. 페이지를 클릭하면 소리가 나옵니다.');
+                                                                    // 실패 시 사용자 클릭 대기
+                                                                    setupUnmuteOnClick(player);
+                                                                }
+                                                            }, 100);
+                                                        } else {
+                                                            clearInterval(unmuteInterval);
+                                                            console.log('이미 음소거가 해제되어 있습니다.');
+                                                        }
+                                                    } catch (e) {
+                                                        if (unmuteRetryCount < maxUnmuteRetries) {
+                                                            unmuteRetryCount++;
+                                                        } else {
+                                                            clearInterval(unmuteInterval);
+                                                            console.info('자동 음소거 해제 실패. 페이지를 클릭하면 소리가 나옵니다.');
+                                                            setupUnmuteOnClick(player);
+                                                        }
                                                     }
-                                                }, 100);
-                                            } else {
-                                                clearInterval(unmuteInterval);
-                                                console.log('이미 음소거가 해제되어 있습니다.');
+                                                }, 300);
                                             }
-                                        } catch (e) {
-                                            if (unmuteRetryCount < maxUnmuteRetries) {
-                                                unmuteRetryCount++;
+                                        } else if (state === YT.PlayerState.UNSTARTED || state === YT.PlayerState.CUED) {
+                                            // 아직 재생되지 않았으면 재시도
+                                            if (retryCount < maxRetries) {
+                                                retryCount++;
+                                                try {
+                                                    player.playVideo();
+                                                } catch (e) {
+                                                    console.error('재생 재시도 실패:', e);
+                                                }
                                             } else {
-                                                clearInterval(unmuteInterval);
-                                                console.info('자동 음소거 해제 실패. 페이지를 클릭하면 소리가 나옵니다.');
-                                                setupUnmuteOnClick(event.target);
+                                                clearInterval(checkPlayInterval);
+                                                console.info('자동 재생이 제한되었습니다. 영상을 클릭하여 재생하세요.');
                                             }
+                                        } else if (state === YT.PlayerState.ENDED) {
+                                            // 재생이 끝났으면 다시 재생
+                                            player.playVideo();
                                         }
-                                    }, 300);
-                                }
-                            } else if (retryCount < maxRetries) {
-                                retryCount++;
-                                try {
-                                    event.target.playVideo();
-                                } catch (e) {
-                                    console.error('재생 재시도 실패:', e);
-                                }
-                            } else {
-                                clearInterval(checkPlayInterval);
-                                // 자동 재생 실패 시 사용자에게 알림 (콘솔만, UI는 변경하지 않음)
-                                console.info('자동 재생이 제한되었습니다. 영상을 클릭하여 재생하세요.');
+                                    } catch (e) {
+                                        console.error('재생 상태 확인 실패:', e);
+                                        if (retryCount < maxRetries) {
+                                            retryCount++;
+                                        } else {
+                                            clearInterval(checkPlayInterval);
+                                        }
+                                    }
+                                }, 200);
+                            } catch (e) {
+                                console.error('자동 재생 실패:', e);
                             }
-                        }, 200);
+                        }, 300);
                     } catch (e) {
-                        console.error('자동 재생 실패:', e);
+                        console.error('플레이어 재생 초기화 실패:', e);
                     }
                 },
                 onStateChange: function(event) {
