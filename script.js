@@ -34,6 +34,8 @@ let allMovies = []; // 모든 영화 데이터 저장
 let currentTab = 'nowPlaying'; // 현재 탭 상태
 let allGenres = []; // 모든 장르 데이터 저장
 let currentGenreId = 'all'; // 현재 선택된 장르 ID
+let youtubePlayer = null; // YouTube Player 객체
+let youtubeAPIReady = false; // YouTube IFrame API 준비 상태
 
 /**
  * API에서 장르 목록을 가져옵니다.
@@ -403,17 +405,61 @@ async function displayFeaturedMovie(movie) {
         
         // 비디오가 있으면 자동 재생, 없으면 플레이스홀더
         if (videoKey) {
-            // 비디오 자동 재생
-            const iframe = document.createElement('iframe');
-            iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=0&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1`;
-            iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-            iframe.allowFullscreen = true;
-            iframe.setAttribute('allowfullscreen', 'true');
-            iframe.style.width = '100%';
-            iframe.style.height = '100%';
+            // 기존 플레이어가 있으면 제거
+            if (youtubePlayer) {
+                try {
+                    youtubePlayer.destroy();
+                } catch (e) {
+                    console.error('기존 플레이어 제거 실패:', e);
+                }
+                youtubePlayer = null;
+            }
             
-            heroVideoContainerElement.innerHTML = '';
-            heroVideoContainerElement.appendChild(iframe);
+            // YouTube Player 생성
+            heroVideoContainerElement.innerHTML = '<div id="youtube-player"></div>';
+            const playerDiv = document.getElementById('youtube-player');
+            
+            // YouTube IFrame API가 로드되었는지 확인
+            if (typeof YT !== 'undefined' && YT.Player && youtubeAPIReady) {
+                youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
+            } else if (typeof YT !== 'undefined' && YT.Player) {
+                // API는 로드되었지만 ready 콜백이 아직 호출되지 않았을 수 있음
+                // 잠시 대기 후 재시도
+                const checkAPIReady = setInterval(() => {
+                    if (youtubeAPIReady || (typeof YT !== 'undefined' && YT.Player)) {
+                        clearInterval(checkAPIReady);
+                        youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
+                    }
+                }, 100);
+                
+                // 3초 후에도 준비되지 않으면 iframe으로 대체
+                setTimeout(() => {
+                    clearInterval(checkAPIReady);
+                    if (!youtubePlayer) {
+                        console.warn('YouTube API 로드 대기 시간 초과, iframe으로 대체');
+                        const iframe = document.createElement('iframe');
+                        iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=1&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&start=0`;
+                        iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+                        iframe.allowFullscreen = true;
+                        iframe.setAttribute('allowfullscreen', 'true');
+                        iframe.style.width = '100%';
+                        iframe.style.height = '100%';
+                        playerDiv.innerHTML = '';
+                        playerDiv.appendChild(iframe);
+                    }
+                }, 3000);
+            } else {
+                // API가 아직 로드되지 않았으면 iframe으로 대체 (자동재생 강제)
+                console.warn('YouTube IFrame API가 로드되지 않음, iframe으로 대체');
+                const iframe = document.createElement('iframe');
+                iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=1&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&start=0`;
+                iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+                iframe.allowFullscreen = true;
+                iframe.setAttribute('allowfullscreen', 'true');
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                playerDiv.appendChild(iframe);
+            }
         } else {
             heroVideoContainerElement.innerHTML = `
                 <div class="video-placeholder">
@@ -610,7 +656,7 @@ async function initializeGenreFilter() {
         const genreSelect = document.getElementById('genreSelect');
         
         // 제외할 장르 목록
-        const excludedGenres = ['역사', '음악', '전쟁', '서부', 'TV 영화'];
+        const excludedGenres = ['역사', '음악', '전쟁', '서부', 'TV 영화', '범죄', '모험'];
         
         if (genreSelect && allGenres.length > 0) {
             // 기존 옵션 제거 (전체 장르 제외)
@@ -737,6 +783,113 @@ function setupAutoScroll() {
             scrollInterval = null;
         }
     });
+}
+
+// YouTube IFrame API 준비 콜백
+function onYouTubeIframeAPIReady() {
+    youtubeAPIReady = true;
+    console.log('YouTube IFrame API 준비 완료');
+    
+    // API가 준비되면 기존 비디오가 있으면 다시 로드
+    if (currentVideoKey && heroVideoContainerElement) {
+        const playerDiv = document.getElementById('youtube-player');
+        if (playerDiv && !youtubePlayer) {
+            createYouTubePlayer('youtube-player', currentVideoKey);
+        }
+    }
+}
+
+// YouTube 플레이어 생성 함수
+function createYouTubePlayer(containerId, videoKey) {
+    if (typeof YT === 'undefined' || !YT.Player) {
+        console.error('YouTube IFrame API가 로드되지 않았습니다.');
+        return null;
+    }
+    
+    try {
+        const player = new YT.Player(containerId, {
+            videoId: videoKey,
+            playerVars: {
+                autoplay: 1,
+                mute: 1, // 초기에는 음소거 (브라우저 정책)
+                loop: 1,
+                playlist: videoKey,
+                controls: 1,
+                fs: 1,
+                rel: 0,
+                modestbranding: 1,
+                playsinline: 1,
+                enablejsapi: 1
+            },
+            events: {
+                onReady: function(event) {
+                    console.log('YouTube 플레이어 준비 완료');
+                    // 플레이어 준비되면 자동 재생 시작
+                    try {
+                        event.target.playVideo();
+                        // 재생 확인 및 재시도 (여러 번 시도)
+                        let retryCount = 0;
+                        const maxRetries = 5;
+                        const checkPlayInterval = setInterval(() => {
+                            const state = event.target.getPlayerState();
+                            if (state === YT.PlayerState.PLAYING) {
+                                clearInterval(checkPlayInterval);
+                                console.log('영상 재생 성공');
+                            } else if (retryCount < maxRetries) {
+                                retryCount++;
+                                try {
+                                    event.target.playVideo();
+                                } catch (e) {
+                                    console.error('재생 재시도 실패:', e);
+                                }
+                            } else {
+                                clearInterval(checkPlayInterval);
+                                // 자동 재생 실패 시 사용자에게 알림 (콘솔만, UI는 변경하지 않음)
+                                console.info('자동 재생이 제한되었습니다. 영상을 클릭하여 재생하세요.');
+                            }
+                        }, 200);
+                    } catch (e) {
+                        console.error('자동 재생 실패:', e);
+                    }
+                    // 페이지 어디든 클릭하면 음소거 해제
+                    if (event.target.isMuted()) {
+                        let unmuted = false;
+                        const handlePageClick = () => {
+                            if (!unmuted && youtubePlayer) {
+                                try {
+                                    if (youtubePlayer.isMuted && youtubePlayer.isMuted()) {
+                                        youtubePlayer.unMute();
+                                        unmuted = true;
+                                        document.removeEventListener('click', handlePageClick);
+                                        document.removeEventListener('touchstart', handlePageClick);
+                                        console.log('음소거 해제 성공');
+                                    }
+                                } catch (e) {
+                                    console.error('음소거 해제 실패:', e);
+                                }
+                            }
+                        };
+                        // 클릭 및 터치 이벤트 리스너 추가
+                        document.addEventListener('click', handlePageClick, { once: true });
+                        document.addEventListener('touchstart', handlePageClick, { once: true });
+                    }
+                },
+                onStateChange: function(event) {
+                    // 재생이 끝나면 다시 재생 (루프)
+                    if (event.data === YT.PlayerState.ENDED) {
+                        event.target.playVideo();
+                    }
+                },
+                onError: function(event) {
+                    console.error('YouTube 플레이어 오류:', event.data);
+                }
+            }
+        });
+        return player;
+    } catch (e) {
+        console.error('YouTube 플레이어 생성 실패:', e);
+        return null;
+    }
 }
 
 // 자동 스크롤 기능 초기화
