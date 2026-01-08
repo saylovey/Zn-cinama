@@ -415,57 +415,44 @@ async function displayFeaturedMovie(movie) {
                 youtubePlayer = null;
             }
             
-            // YouTube Player 생성
-            heroVideoContainerElement.innerHTML = '<div id="youtube-player"></div>';
-            const playerDiv = document.getElementById('youtube-player');
+            // iframe을 직접 사용하여 더 확실하게 재생
+            const iframe = document.createElement('iframe');
+            iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=1&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&start=0&iv_load_policy=3`;
+            iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+            iframe.allowFullscreen = true;
+            iframe.setAttribute('allowfullscreen', 'true');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.id = 'youtube-iframe-player';
             
-            // YouTube IFrame API가 로드되었는지 확인
-            if (typeof YT !== 'undefined' && YT.Player) {
-                // API가 로드되었으면 플레이어 생성 시도
-                if (youtubeAPIReady) {
-                    youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
-                } else {
-                    // API는 로드되었지만 ready 콜백이 아직 호출되지 않았을 수 있음
-                    // 잠시 대기 후 재시도
-                    let checkCount = 0;
-                    const maxChecks = 30; // 3초간 대기 (100ms * 30)
-                    const checkAPIReady = setInterval(() => {
-                        checkCount++;
-                        if (youtubeAPIReady) {
-                            clearInterval(checkAPIReady);
-                            youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
-                        } else if (checkCount >= maxChecks) {
-                            clearInterval(checkAPIReady);
-                            // API가 준비되지 않았지만 강제로 플레이어 생성 시도
-                            console.warn('YouTube API ready 콜백 대기 시간 초과, 강제 생성 시도');
-                            youtubePlayer = createYouTubePlayer('youtube-player', videoKey);
-                            if (!youtubePlayer) {
-                                // 플레이어 생성 실패 시 iframe으로 대체
-                                console.warn('플레이어 생성 실패, iframe으로 대체');
-                                const iframe = document.createElement('iframe');
-                                iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=1&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&start=0`;
-                                iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-                                iframe.allowFullscreen = true;
-                                iframe.setAttribute('allowfullscreen', 'true');
-                                iframe.style.width = '100%';
-                                iframe.style.height = '100%';
-                                playerDiv.innerHTML = '';
-                                playerDiv.appendChild(iframe);
-                            }
-                        }
-                    }, 100);
-                }
+            // 컨테이너 초기화 후 iframe 추가
+            heroVideoContainerElement.innerHTML = '';
+            heroVideoContainerElement.appendChild(iframe);
+            
+            // iframe 로드 후 자동 음소거 해제 시도
+            iframe.addEventListener('load', () => {
+                console.log('YouTube iframe 로드 완료');
+                setupAutoUnmute();
+            });
+            
+            // YouTube API가 로드되어 있으면 추가 제어를 위해 플레이어 객체도 생성 시도
+            if (typeof YT !== 'undefined' && YT.Player && youtubeAPIReady) {
+                // iframe이 로드된 후 플레이어 객체 생성 시도 (제어용)
+                setTimeout(() => {
+                    try {
+                        const playerDiv = document.createElement('div');
+                        playerDiv.id = 'youtube-player-ctrl';
+                        playerDiv.style.display = 'none';
+                        heroVideoContainerElement.appendChild(playerDiv);
+                        youtubePlayer = createYouTubePlayer('youtube-player-ctrl', videoKey);
+                    } catch (e) {
+                        console.warn('플레이어 객체 생성 실패 (제어용, 재생에는 영향 없음):', e);
+                    }
+                }, 1000);
             } else {
-                // API가 아직 로드되지 않았으면 iframe으로 대체 (자동재생 강제)
-                console.warn('YouTube IFrame API가 로드되지 않음, iframe으로 대체');
-                const iframe = document.createElement('iframe');
-                iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=1&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&start=0`;
-                iframe.allow = 'autoplay; accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-                iframe.allowFullscreen = true;
-                iframe.setAttribute('allowfullscreen', 'true');
-                iframe.style.width = '100%';
-                iframe.style.height = '100%';
-                playerDiv.appendChild(iframe);
+                // API가 없어도 iframe은 작동하므로 자동 음소거 해제 시도
+                setupAutoUnmute();
             }
         } else {
             heroVideoContainerElement.innerHTML = `
@@ -810,14 +797,31 @@ window.onYouTubeIframeAPIReady = function() {
 function setupUnmuteOnClick(player) {
     let unmuted = false;
     const handlePageClick = () => {
-        if (!unmuted && player) {
+        if (!unmuted) {
             try {
-                if (player.isMuted && player.isMuted()) {
+                // YouTube Player API를 통한 음소거 해제 시도
+                if (player && player.isMuted && player.isMuted()) {
                     player.unMute();
                     unmuted = true;
                     document.removeEventListener('click', handlePageClick);
                     document.removeEventListener('touchstart', handlePageClick);
-                    console.log('음소거 해제 성공 (사용자 클릭)');
+                    console.log('음소거 해제 성공 (사용자 클릭 - API)');
+                    return;
+                }
+                
+                // iframe을 통한 음소거 해제 시도
+                const iframe = document.getElementById('youtube-iframe-player');
+                if (iframe && iframe.contentWindow) {
+                    try {
+                        // iframe의 YouTube 플레이어에 postMessage로 음소거 해제 명령 전송
+                        iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
+                        unmuted = true;
+                        document.removeEventListener('click', handlePageClick);
+                        document.removeEventListener('touchstart', handlePageClick);
+                        console.log('음소거 해제 성공 (사용자 클릭 - iframe)');
+                    } catch (e) {
+                        console.warn('iframe 음소거 해제 시도:', e);
+                    }
                 }
             } catch (e) {
                 console.error('음소거 해제 실패:', e);
@@ -827,6 +831,41 @@ function setupUnmuteOnClick(player) {
     // 클릭 및 터치 이벤트 리스너 추가
     document.addEventListener('click', handlePageClick, { once: true });
     document.addEventListener('touchstart', handlePageClick, { once: true });
+}
+
+// 페이지 로드 시 자동으로 음소거 해제 시도
+function setupAutoUnmute() {
+    // iframe이 로드된 후 자동으로 음소거 해제 시도
+    const checkIframe = setInterval(() => {
+        const iframe = document.getElementById('youtube-iframe-player');
+        if (iframe) {
+            clearInterval(checkIframe);
+            // iframe 로드 후 약간의 지연을 두고 음소거 해제 시도
+            setTimeout(() => {
+                try {
+                    if (iframe.contentWindow) {
+                        // 자동 음소거 해제 시도 (브라우저 정책상 실패할 수 있음)
+                        iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
+                        console.log('자동 음소거 해제 시도');
+                        
+                        // 자동 해제 실패 시 클릭 이벤트 대기
+                        setTimeout(() => {
+                            setupUnmuteOnClick(null);
+                        }, 2000);
+                    }
+                } catch (e) {
+                    console.warn('자동 음소거 해제 실패, 클릭 대기:', e);
+                    setupUnmuteOnClick(null);
+                }
+            }, 1000);
+        }
+    }, 100);
+    
+    // 5초 후에도 iframe이 없으면 클릭 이벤트만 설정
+    setTimeout(() => {
+        clearInterval(checkIframe);
+        setupUnmuteOnClick(null);
+    }, 5000);
 }
 
 // YouTube 플레이어 생성 함수
