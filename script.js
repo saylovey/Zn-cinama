@@ -415,6 +415,16 @@ async function displayFeaturedMovie(movie) {
                 youtubePlayer = null;
             }
             
+            // 기존에 생성된 숨겨진 플레이어 요소도 제거 (중복 재생 방지)
+            const existingCtrlPlayer = document.getElementById('youtube-player-ctrl');
+            if (existingCtrlPlayer) {
+                existingCtrlPlayer.remove();
+            }
+            const existingPlayer = document.getElementById('youtube-player');
+            if (existingPlayer && existingPlayer !== heroVideoContainerElement) {
+                existingPlayer.remove();
+            }
+            
             // iframe을 직접 사용하여 더 확실하게 재생
             const iframe = document.createElement('iframe');
             iframe.src = `${YOUTUBE_EMBED_URL}${videoKey}?autoplay=1&mute=1&loop=1&playlist=${videoKey}&controls=1&fs=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&start=0&iv_load_policy=3`;
@@ -436,24 +446,7 @@ async function displayFeaturedMovie(movie) {
                 setupAutoUnmute();
             });
             
-            // YouTube API가 로드되어 있으면 추가 제어를 위해 플레이어 객체도 생성 시도
-            if (typeof YT !== 'undefined' && YT.Player && youtubeAPIReady) {
-                // iframe이 로드된 후 플레이어 객체 생성 시도 (제어용)
-                setTimeout(() => {
-                    try {
-                        const playerDiv = document.createElement('div');
-                        playerDiv.id = 'youtube-player-ctrl';
-                        playerDiv.style.display = 'none';
-                        heroVideoContainerElement.appendChild(playerDiv);
-                        youtubePlayer = createYouTubePlayer('youtube-player-ctrl', videoKey);
-                    } catch (e) {
-                        console.warn('플레이어 객체 생성 실패 (제어용, 재생에는 영향 없음):', e);
-                    }
-                }, 1000);
-            } else {
-                // API가 없어도 iframe은 작동하므로 자동 음소거 해제 시도
-                setupAutoUnmute();
-            }
+            // iframe만 사용하므로 YouTube API 플레이어는 생성하지 않음 (중복 재생 방지)
         } else {
             heroVideoContainerElement.innerHTML = `
                 <div class="video-placeholder">
@@ -784,12 +777,12 @@ window.onYouTubeIframeAPIReady = function() {
     youtubeAPIReady = true;
     console.log('YouTube IFrame API 준비 완료');
     
-    // API가 준비되면 기존 비디오가 있으면 다시 로드
-    if (currentVideoKey && heroVideoContainerElement) {
-        const playerDiv = document.getElementById('youtube-player');
-        if (playerDiv && !youtubePlayer) {
-            youtubePlayer = createYouTubePlayer('youtube-player', currentVideoKey);
-        }
+    // iframe을 사용하므로 API 플레이어는 생성하지 않음 (중복 재생 방지)
+    // iframe이 이미 있으면 추가 플레이어 생성하지 않음
+    const existingIframe = document.getElementById('youtube-iframe-player');
+    if (existingIframe) {
+        console.log('이미 iframe이 존재하므로 API 플레이어를 생성하지 않습니다.');
+        return;
     }
 };
 
