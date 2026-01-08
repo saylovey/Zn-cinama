@@ -799,6 +799,29 @@ function onYouTubeIframeAPIReady() {
     }
 }
 
+// 사용자 클릭 시 음소거 해제를 위한 헬퍼 함수
+function setupUnmuteOnClick(player) {
+    let unmuted = false;
+    const handlePageClick = () => {
+        if (!unmuted && player) {
+            try {
+                if (player.isMuted && player.isMuted()) {
+                    player.unMute();
+                    unmuted = true;
+                    document.removeEventListener('click', handlePageClick);
+                    document.removeEventListener('touchstart', handlePageClick);
+                    console.log('음소거 해제 성공 (사용자 클릭)');
+                }
+            } catch (e) {
+                console.error('음소거 해제 실패:', e);
+            }
+        }
+    };
+    // 클릭 및 터치 이벤트 리스너 추가
+    document.addEventListener('click', handlePageClick, { once: true });
+    document.addEventListener('touchstart', handlePageClick, { once: true });
+}
+
 // YouTube 플레이어 생성 함수
 function createYouTubePlayer(containerId, videoKey) {
     if (typeof YT === 'undefined' || !YT.Player) {
@@ -835,6 +858,45 @@ function createYouTubePlayer(containerId, videoKey) {
                             if (state === YT.PlayerState.PLAYING) {
                                 clearInterval(checkPlayInterval);
                                 console.log('영상 재생 성공');
+                                
+                                // 재생 성공 후 자동으로 음소거 해제 시도
+                                if (event.target.isMuted()) {
+                                    // 여러 번 시도 (브라우저 정책상 실패할 수 있음)
+                                    let unmuteRetryCount = 0;
+                                    const maxUnmuteRetries = 10;
+                                    const unmuteInterval = setInterval(() => {
+                                        try {
+                                            if (event.target.isMuted()) {
+                                                event.target.unMute();
+                                                // 음소거 해제 확인
+                                                setTimeout(() => {
+                                                    if (!event.target.isMuted()) {
+                                                        clearInterval(unmuteInterval);
+                                                        console.log('음소거 자동 해제 성공');
+                                                    } else if (unmuteRetryCount < maxUnmuteRetries) {
+                                                        unmuteRetryCount++;
+                                                    } else {
+                                                        clearInterval(unmuteInterval);
+                                                        console.info('자동 음소거 해제 실패. 페이지를 클릭하면 소리가 나옵니다.');
+                                                        // 실패 시 사용자 클릭 대기
+                                                        setupUnmuteOnClick(event.target);
+                                                    }
+                                                }, 100);
+                                            } else {
+                                                clearInterval(unmuteInterval);
+                                                console.log('이미 음소거가 해제되어 있습니다.');
+                                            }
+                                        } catch (e) {
+                                            if (unmuteRetryCount < maxUnmuteRetries) {
+                                                unmuteRetryCount++;
+                                            } else {
+                                                clearInterval(unmuteInterval);
+                                                console.info('자동 음소거 해제 실패. 페이지를 클릭하면 소리가 나옵니다.');
+                                                setupUnmuteOnClick(event.target);
+                                            }
+                                        }
+                                    }, 300);
+                                }
                             } else if (retryCount < maxRetries) {
                                 retryCount++;
                                 try {
@@ -850,28 +912,6 @@ function createYouTubePlayer(containerId, videoKey) {
                         }, 200);
                     } catch (e) {
                         console.error('자동 재생 실패:', e);
-                    }
-                    // 페이지 어디든 클릭하면 음소거 해제
-                    if (event.target.isMuted()) {
-                        let unmuted = false;
-                        const handlePageClick = () => {
-                            if (!unmuted && youtubePlayer) {
-                                try {
-                                    if (youtubePlayer.isMuted && youtubePlayer.isMuted()) {
-                                        youtubePlayer.unMute();
-                                        unmuted = true;
-                                        document.removeEventListener('click', handlePageClick);
-                                        document.removeEventListener('touchstart', handlePageClick);
-                                        console.log('음소거 해제 성공');
-                                    }
-                                } catch (e) {
-                                    console.error('음소거 해제 실패:', e);
-                                }
-                            }
-                        };
-                        // 클릭 및 터치 이벤트 리스너 추가
-                        document.addEventListener('click', handlePageClick, { once: true });
-                        document.addEventListener('touchstart', handlePageClick, { once: true });
                     }
                 },
                 onStateChange: function(event) {
