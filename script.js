@@ -98,6 +98,19 @@ function sortMoviesByBooking(movies) {
 }
 
 /**
+ * 영화 데이터를 평점순으로 정렬합니다.
+ * @param {Array} movies - 영화 데이터 배열
+ * @returns {Array} 정렬된 영화 데이터 배열
+ */
+function sortMoviesByRating(movies) {
+    return [...movies].sort((a, b) => {
+        const ratingA = a.vote_average || 0;
+        const ratingB = b.vote_average || 0;
+        return ratingB - ratingA; // 높은 평점순
+    });
+}
+
+/**
  * 영화 포스터 이미지 URL을 생성합니다.
  * @param {string|null} posterPath - 포스터 경로
  * @returns {string} 포스터 이미지 URL
@@ -259,12 +272,14 @@ function switchTab(tab) {
     const tabNowPlaying = document.getElementById('tabNowPlaying');
     const tabPopular = document.getElementById('tabPopular');
     const tabBooking = document.getElementById('tabBooking');
+    const tabRating = document.getElementById('tabRating');
     const sectionTitle = document.getElementById('sectionTitle');
     
     // 모든 탭 비활성화
     tabNowPlaying.classList.remove('active');
     tabPopular.classList.remove('active');
     tabBooking.classList.remove('active');
+    if (tabRating) tabRating.classList.remove('active');
     
     // 선택된 탭 활성화 및 제목 변경
     if (tab === 'nowPlaying') {
@@ -281,6 +296,11 @@ function switchTab(tab) {
         tabBooking.classList.add('active');
         if (sectionTitle) {
             sectionTitle.textContent = '예매율순';
+        }
+    } else if (tab === 'rating') {
+        if (tabRating) tabRating.classList.add('active');
+        if (sectionTitle) {
+            sectionTitle.textContent = '평점순';
         }
     }
     
@@ -321,6 +341,8 @@ function applyFilters() {
         sortedMovies = sortMoviesByPopularity(filteredMovies);
     } else if (currentTab === 'booking') {
         sortedMovies = sortMoviesByBooking(filteredMovies);
+    } else if (currentTab === 'rating') {
+        sortedMovies = sortMoviesByRating(filteredMovies);
     }
     
     // 영화 목록 업데이트
