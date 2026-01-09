@@ -692,27 +692,31 @@ async function initialize() {
 document.addEventListener('DOMContentLoaded', initialize);
 
 /**
- * 마우스 호버 시 자동 스크롤 기능
+ * 마우스 호버 시 자동 스크롤 기능 (포스터 컨테이너만 스크롤)
  */
 function setupAutoScroll() {
     const moviesSection = document.getElementById('moviesSection');
     if (!moviesSection) return;
+    
+    // 포스터 컨테이너 찾기
+    const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
+    if (!moviesColumnContainer) return;
     
     let scrollInterval = null;
     const baseScrollSpeed = 3; // 기본 스크롤 속도 (더 느리게)
     const topScrollZone = 200; // 상단 자동 스크롤 영역 (더 넓게)
     const bottomScrollZone = 100; // 하단 자동 스크롤 영역
     
-    moviesSection.addEventListener('mousemove', (e) => {
+    moviesColumnContainer.addEventListener('mousemove', (e) => {
         // 기존 스크롤 중지
         if (scrollInterval) {
             clearInterval(scrollInterval);
             scrollInterval = null;
         }
         
-        const rect = moviesSection.getBoundingClientRect();
+        const rect = moviesColumnContainer.getBoundingClientRect();
         const mouseY = e.clientY - rect.top;
-        const sectionHeight = rect.height;
+        const containerHeight = rect.height;
         
         // 상단 영역에 마우스가 있으면 위로 스크롤 (영역 확대, 속도 하단과 동일)
         if (mouseY < topScrollZone && mouseY >= 0) {
@@ -722,10 +726,10 @@ function setupAutoScroll() {
             const currentSpeed = Math.max(0.5, baseScrollSpeed * (1 + speedMultiplier * 0.5)); // 최소 0.5, 최대 약 4.5 속도 (더 느리게)
             
             scrollInterval = setInterval(() => {
-                const currentScroll = moviesSection.scrollTop;
+                const currentScroll = moviesColumnContainer.scrollTop;
                 if (currentScroll > 0) {
                     const newScroll = Math.max(0, currentScroll - currentSpeed);
-                    moviesSection.scrollTop = newScroll;
+                    moviesColumnContainer.scrollTop = newScroll;
                     
                     if (newScroll <= 0) {
                         clearInterval(scrollInterval);
@@ -738,18 +742,18 @@ function setupAutoScroll() {
             }, 16); // 약 60fps (하단과 동일)
         }
         // 하단 영역에 마우스가 있으면 아래로 스크롤
-        else if (mouseY > sectionHeight - bottomScrollZone) {
-            const distanceFromBottom = sectionHeight - mouseY;
+        else if (mouseY > containerHeight - bottomScrollZone) {
+            const distanceFromBottom = containerHeight - mouseY;
             const normalizedDistance = Math.max(0, Math.min(1, distanceFromBottom / bottomScrollZone)); // 0~1 사이 값
             const speedMultiplier = 1 - normalizedDistance; // 하단에 가까울수록 1에 가까움
             const currentSpeed = Math.max(1, baseScrollSpeed * (1 + speedMultiplier * 0.8)); // 최소 1, 최대 약 9 속도
             
             scrollInterval = setInterval(() => {
-                const maxScroll = moviesSection.scrollHeight - moviesSection.clientHeight;
-                const currentScroll = moviesSection.scrollTop;
+                const maxScroll = moviesColumnContainer.scrollHeight - moviesColumnContainer.clientHeight;
+                const currentScroll = moviesColumnContainer.scrollTop;
                 if (currentScroll < maxScroll) {
                     const newScroll = Math.min(maxScroll, currentScroll + currentSpeed);
-                    moviesSection.scrollTop = newScroll;
+                    moviesColumnContainer.scrollTop = newScroll;
                     
                     if (newScroll >= maxScroll) {
                         clearInterval(scrollInterval);
@@ -763,7 +767,7 @@ function setupAutoScroll() {
         }
     });
     
-    moviesSection.addEventListener('mouseleave', () => {
+    moviesColumnContainer.addEventListener('mouseleave', () => {
         // 마우스가 영역을 벗어나면 스크롤 중지
         if (scrollInterval) {
             clearInterval(scrollInterval);

@@ -611,21 +611,22 @@ body {
     position: sticky;
     top: 80px;
     height: calc(100vh - 100px);
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
     z-index: 999;
     background: transparent;
-    scrollbar-width: none; /* Firefox 스크롤바 숨기기 */
-    -ms-overflow-style: none; /* IE/Edge 스크롤바 숨기기 */
+    overflow: hidden; /* 전체 섹션은 스크롤 없음 */
 }
 
-.movies-section::-webkit-scrollbar {
-    display: none; /* Chrome/Safari 스크롤바 숨기기 */
+.section-header {
+    flex-shrink: 0; /* 헤더는 고정 */
 }
 
 .section-header {
     margin-bottom: var(--spacing-lg);
     padding-bottom: var(--spacing-md);
     border-bottom: 2px solid rgba(229, 9, 20, 0.3);
+    flex-shrink: 0; /* 헤더는 고정 */
 }
 
 .section-title {
@@ -722,6 +723,15 @@ body {
 
 .movies-column-container {
     padding: 0;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none; /* Firefox 스크롤바 숨기기 */
+    -ms-overflow-style: none; /* IE/Edge 스크롤바 숨기기 */
+}
+
+.movies-column-container::-webkit-scrollbar {
+    display: none; /* Chrome/Safari 스크롤바 숨기기 */
 }
 
 .movies-column {
