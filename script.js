@@ -705,7 +705,7 @@ function setupAutoScroll() {
     
     let autoScrollInterval = null;
     let hoverScrollInterval = null;
-    const autoScrollSpeed = 0.4; // 자동 스크롤 속도 (천천히)
+    const autoScrollSpeed = 0.5; // 자동 스크롤 속도 (천천히)
     const baseScrollSpeed = 3; // 마우스 호버 시 기본 스크롤 속도
     const topScrollZone = 200; // 상단 자동 스크롤 영역
     const bottomScrollZone = 100; // 하단 자동 스크롤 영역
@@ -715,11 +715,7 @@ function setupAutoScroll() {
      * 자동 스크롤 시작 (아래로 천천히)
      */
     function startAutoScroll() {
-        // 기존 인터벌이 있으면 정리
-        if (autoScrollInterval) {
-            clearInterval(autoScrollInterval);
-            autoScrollInterval = null;
-        }
+        if (autoScrollInterval) return; // 이미 실행 중이면 중복 실행 방지
         
         autoScrollInterval = setInterval(() => {
             if (isPaused) return; // 일시 정지 상태면 스킵
@@ -727,16 +723,21 @@ function setupAutoScroll() {
             const maxScroll = moviesColumnContainer.scrollHeight - moviesColumnContainer.clientHeight;
             const currentScroll = moviesColumnContainer.scrollTop;
             
-            // 스크롤 가능한 높이가 있는지 확인
-            if (maxScroll <= 0) return;
-            
-            if (currentScroll < maxScroll - 1) {
+            if (currentScroll < maxScroll) {
                 // 아래로 스크롤
                 const newScroll = Math.min(maxScroll, currentScroll + autoScrollSpeed);
                 moviesColumnContainer.scrollTop = newScroll;
-            } else {
-                // 맨 아래 도달 시 맨 위로 즉시 이동 (부드러운 애니메이션 없이)
-                moviesColumnContainer.scrollTop = 0;
+                
+                // 맨 아래 도달 시 맨 위로 부드럽게 이동
+                if (newScroll >= maxScroll) {
+                    // 잠시 대기 후 맨 위로 이동
+                    setTimeout(() => {
+                        moviesColumnContainer.scrollTo({
+                            top: 0,
+                            behavior: 'smooth'
+                        });
+                    }, 1000); // 1초 대기
+                }
             }
         }, 16); // 약 60fps
     }
