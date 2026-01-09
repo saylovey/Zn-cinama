@@ -692,7 +692,8 @@ async function initialize() {
 document.addEventListener('DOMContentLoaded', initialize);
 
 /**
- * 마우스 호버 시 자동 스크롤 기능 (포스터 컨테이너만 스크롤)
+ * 자동 스크롤 기능 (포스터 컨테이너만 스크롤)
+ * 마우스 없이 자동으로 천천히 아래로 스크롤, 마우스 호버 시 일시 정지
  */
 function setupAutoScroll() {
     const moviesSection = document.getElementById('moviesSection');
@@ -702,53 +703,103 @@ function setupAutoScroll() {
     const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
     if (!moviesColumnContainer) return;
     
-    let scrollInterval = null;
-    const baseScrollSpeed = 3; // 기본 스크롤 속도 (더 느리게)
-    const topScrollZone = 200; // 상단 자동 스크롤 영역 (더 넓게)
+    let autoScrollInterval = null;
+    let hoverScrollInterval = null;
+    const autoScrollSpeed = 0.5; // 자동 스크롤 속도 (천천히)
+    const baseScrollSpeed = 3; // 마우스 호버 시 기본 스크롤 속도
+    const topScrollZone = 200; // 상단 자동 스크롤 영역
     const bottomScrollZone = 100; // 하단 자동 스크롤 영역
+    let isPaused = false; // 마우스 호버로 인한 일시 정지 상태
     
+    /**
+     * 자동 스크롤 시작 (아래로 천천히)
+     */
+    function startAutoScroll() {
+        if (autoScrollInterval) return; // 이미 실행 중이면 중복 실행 방지
+        
+        autoScrollInterval = setInterval(() => {
+            if (isPaused) return; // 일시 정지 상태면 스킵
+            
+            const maxScroll = moviesColumnContainer.scrollHeight - moviesColumnContainer.clientHeight;
+            const currentScroll = moviesColumnContainer.scrollTop;
+            
+            if (currentScroll < maxScroll) {
+                // 아래로 스크롤
+                const newScroll = Math.min(maxScroll, currentScroll + autoScrollSpeed);
+                moviesColumnContainer.scrollTop = newScroll;
+                
+                // 맨 아래 도달 시 맨 위로 부드럽게 이동
+                if (newScroll >= maxScroll) {
+                    // 잠시 대기 후 맨 위로 이동
+                    setTimeout(() => {
+                        moviesColumnContainer.scrollTo({
+                            top: 0,
+                            behavior: 'smooth'
+                        });
+                    }, 1000); // 1초 대기
+                }
+            }
+        }, 16); // 약 60fps
+    }
+    
+    /**
+     * 자동 스크롤 중지
+     */
+    function stopAutoScroll() {
+        if (autoScrollInterval) {
+            clearInterval(autoScrollInterval);
+            autoScrollInterval = null;
+        }
+    }
+    
+    /**
+     * 마우스 호버 시 수동 스크롤 (일시 정지 및 수동 제어)
+     */
     moviesColumnContainer.addEventListener('mousemove', (e) => {
-        // 기존 스크롤 중지
-        if (scrollInterval) {
-            clearInterval(scrollInterval);
-            scrollInterval = null;
+        // 자동 스크롤 일시 정지
+        isPaused = true;
+        
+        // 기존 호버 스크롤 중지
+        if (hoverScrollInterval) {
+            clearInterval(hoverScrollInterval);
+            hoverScrollInterval = null;
         }
         
         const rect = moviesColumnContainer.getBoundingClientRect();
         const mouseY = e.clientY - rect.top;
         const containerHeight = rect.height;
         
-        // 상단 영역에 마우스가 있으면 위로 스크롤 (영역 확대, 속도 하단과 동일)
+        // 상단 영역에 마우스가 있으면 위로 스크롤
         if (mouseY < topScrollZone && mouseY >= 0) {
             const distanceFromTop = mouseY;
-            const normalizedDistance = Math.max(0, Math.min(1, distanceFromTop / topScrollZone)); // 0~1 사이 값
-            const speedMultiplier = 1 - normalizedDistance; // 상단에 가까울수록 1에 가까움 (0에 가까울수록 빠름)
-            const currentSpeed = Math.max(0.5, baseScrollSpeed * (1 + speedMultiplier * 0.5)); // 최소 0.5, 최대 약 4.5 속도 (더 느리게)
+            const normalizedDistance = Math.max(0, Math.min(1, distanceFromTop / topScrollZone));
+            const speedMultiplier = 1 - normalizedDistance;
+            const currentSpeed = Math.max(0.5, baseScrollSpeed * (1 + speedMultiplier * 0.5));
             
-            scrollInterval = setInterval(() => {
+            hoverScrollInterval = setInterval(() => {
                 const currentScroll = moviesColumnContainer.scrollTop;
                 if (currentScroll > 0) {
                     const newScroll = Math.max(0, currentScroll - currentSpeed);
                     moviesColumnContainer.scrollTop = newScroll;
                     
                     if (newScroll <= 0) {
-                        clearInterval(scrollInterval);
-                        scrollInterval = null;
+                        clearInterval(hoverScrollInterval);
+                        hoverScrollInterval = null;
                     }
                 } else {
-                    clearInterval(scrollInterval);
-                    scrollInterval = null;
+                    clearInterval(hoverScrollInterval);
+                    hoverScrollInterval = null;
                 }
-            }, 16); // 약 60fps (하단과 동일)
+            }, 16);
         }
         // 하단 영역에 마우스가 있으면 아래로 스크롤
         else if (mouseY > containerHeight - bottomScrollZone) {
             const distanceFromBottom = containerHeight - mouseY;
-            const normalizedDistance = Math.max(0, Math.min(1, distanceFromBottom / bottomScrollZone)); // 0~1 사이 값
-            const speedMultiplier = 1 - normalizedDistance; // 하단에 가까울수록 1에 가까움
-            const currentSpeed = Math.max(1, baseScrollSpeed * (1 + speedMultiplier * 0.8)); // 최소 1, 최대 약 9 속도
+            const normalizedDistance = Math.max(0, Math.min(1, distanceFromBottom / bottomScrollZone));
+            const speedMultiplier = 1 - normalizedDistance;
+            const currentSpeed = Math.max(1, baseScrollSpeed * (1 + speedMultiplier * 0.8));
             
-            scrollInterval = setInterval(() => {
+            hoverScrollInterval = setInterval(() => {
                 const maxScroll = moviesColumnContainer.scrollHeight - moviesColumnContainer.clientHeight;
                 const currentScroll = moviesColumnContainer.scrollTop;
                 if (currentScroll < maxScroll) {
@@ -756,22 +807,40 @@ function setupAutoScroll() {
                     moviesColumnContainer.scrollTop = newScroll;
                     
                     if (newScroll >= maxScroll) {
-                        clearInterval(scrollInterval);
-                        scrollInterval = null;
+                        clearInterval(hoverScrollInterval);
+                        hoverScrollInterval = null;
                     }
                 } else {
-                    clearInterval(scrollInterval);
-                    scrollInterval = null;
+                    clearInterval(hoverScrollInterval);
+                    hoverScrollInterval = null;
                 }
-            }, 16); // 약 60fps
+            }, 16);
         }
     });
     
+    /**
+     * 마우스가 영역을 벗어나면 자동 스크롤 재개
+     */
     moviesColumnContainer.addEventListener('mouseleave', () => {
-        // 마우스가 영역을 벗어나면 스크롤 중지
-        if (scrollInterval) {
-            clearInterval(scrollInterval);
-            scrollInterval = null;
+        // 호버 스크롤 중지
+        if (hoverScrollInterval) {
+            clearInterval(hoverScrollInterval);
+            hoverScrollInterval = null;
+        }
+        
+        // 자동 스크롤 재개
+        isPaused = false;
+    });
+    
+    // 자동 스크롤 시작
+    startAutoScroll();
+    
+    // 페이지 가시성 변경 시 처리 (탭 전환 시 일시 정지)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopAutoScroll();
+        } else {
+            startAutoScroll();
         }
     });
 }
