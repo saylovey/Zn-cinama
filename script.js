@@ -723,19 +723,20 @@ function setupAutoScroll() {
             const maxScroll = moviesColumnContainer.scrollHeight - moviesColumnContainer.clientHeight;
             const currentScroll = moviesColumnContainer.scrollTop;
             
-            if (currentScroll < maxScroll) {
-                // 아래로 스크롤
-                const newScroll = Math.min(maxScroll, currentScroll + autoScrollSpeed);
+            // 스크롤 가능한 높이가 있는지 확인
+            if (maxScroll <= 0) return;
+            
+            if (currentScroll < maxScroll - 0.5) {
+                // 아래로 스크롤 (최소 0.5px 이상 보장)
+                const scrollAmount = Math.max(0.5, autoScrollSpeed);
+                const newScroll = Math.min(maxScroll, currentScroll + scrollAmount);
                 moviesColumnContainer.scrollTop = newScroll;
                 
                 // 맨 아래 도달 시 맨 위로 부드럽게 이동
-                if (newScroll >= maxScroll) {
+                if (newScroll >= maxScroll - 0.5) {
                     // 잠시 대기 후 맨 위로 이동
                     setTimeout(() => {
-                        moviesColumnContainer.scrollTo({
-                            top: 0,
-                            behavior: 'smooth'
-                        });
+                        moviesColumnContainer.scrollTop = 0;
                     }, 1000); // 1초 대기
                 }
             }
