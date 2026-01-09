@@ -33,7 +33,8 @@ let currentVideoKey = null;
 let allMovies = []; // 모든 영화 데이터 저장
 let currentTab = 'nowPlaying'; // 현재 탭 상태
 let allGenres = []; // 모든 장르 데이터 저장
-let currentGenreId = 'all'; // 현재 선택된 장르 ID
+let currentGenreId = 'all';
+let moviesColumnContainerRef = null; // 포스터 컨테이너 참조 저장
 let youtubePlayer = null; // YouTube Player 객체
 let youtubeAPIReady = false; // YouTube IFrame API 준비 상태
 
@@ -218,6 +219,36 @@ function updateMoviesList(movies) {
 }
 
 /**
+ * 포스터 목록 스크롤을 맨 위로 리셋
+ */
+function resetPosterScroll() {
+    // 여러 방법으로 확실하게 리셋
+    const reset = () => {
+        if (moviesColumnContainerRef) {
+            moviesColumnContainerRef.scrollTop = 0;
+        } else {
+            const moviesSection = document.getElementById('moviesSection');
+            if (moviesSection) {
+                const container = moviesSection.querySelector('.movies-column-container');
+                if (container) {
+                    container.scrollTop = 0;
+                }
+            }
+        }
+    };
+    
+    // 즉시 리셋
+    reset();
+    
+    // DOM 업데이트 후 리셋
+    setTimeout(reset, 0);
+    requestAnimationFrame(() => {
+        reset();
+        setTimeout(reset, 50);
+    });
+}
+
+/**
  * 탭을 전환합니다.
  * @param {string} tab - 'nowPlaying', 'popular', 또는 'booking'
  */
@@ -256,16 +287,8 @@ function switchTab(tab) {
     // 영화 목록 재정렬 및 표시
     applyFilters();
     
-    // DOM 업데이트 완료 후 포스터 목록 스크롤을 맨 위로 리셋
-    setTimeout(() => {
-        const moviesSection = document.getElementById('moviesSection');
-        if (moviesSection) {
-            const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
-            if (moviesColumnContainer) {
-                moviesColumnContainer.scrollTop = 0;
-            }
-        }
-    }, 0);
+    // 포스터 목록 스크롤을 맨 위로 리셋
+    resetPosterScroll();
 }
 
 /**
@@ -304,15 +327,7 @@ function applyFilters() {
     updateMoviesList(sortedMovies);
     
     // 포스터 목록 스크롤을 맨 위로 리셋 (DOM 업데이트 후)
-    setTimeout(() => {
-        const moviesSection = document.getElementById('moviesSection');
-        if (moviesSection) {
-            const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
-            if (moviesColumnContainer) {
-                moviesColumnContainer.scrollTop = 0;
-            }
-        }
-    }, 0);
+    resetPosterScroll();
     
     // 필터링된 영화가 있으면 첫 번째 영화를 메인으로 표시
     if (sortedMovies.length > 0) {
@@ -724,6 +739,9 @@ function setupAutoScroll() {
     // 포스터 컨테이너 찾기
     const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
     if (!moviesColumnContainer) return;
+    
+    // 전역 참조 저장
+    moviesColumnContainerRef = moviesColumnContainer;
     
     let autoScrollInterval = null;
     let hoverScrollInterval = null;
