@@ -256,14 +256,16 @@ function switchTab(tab) {
     // 영화 목록 재정렬 및 표시
     applyFilters();
     
-    // 포스터 목록 스크롤을 맨 위로 리셋
-    const moviesSection = document.getElementById('moviesSection');
-    if (moviesSection) {
-        const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
-        if (moviesColumnContainer) {
-            moviesColumnContainer.scrollTop = 0;
+    // DOM 업데이트 완료 후 포스터 목록 스크롤을 맨 위로 리셋
+    setTimeout(() => {
+        const moviesSection = document.getElementById('moviesSection');
+        if (moviesSection) {
+            const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
+            if (moviesColumnContainer) {
+                moviesColumnContainer.scrollTop = 0;
+            }
         }
-    }
+    }, 0);
 }
 
 /**
@@ -300,6 +302,17 @@ function applyFilters() {
     
     // 영화 목록 업데이트
     updateMoviesList(sortedMovies);
+    
+    // 포스터 목록 스크롤을 맨 위로 리셋 (DOM 업데이트 후)
+    setTimeout(() => {
+        const moviesSection = document.getElementById('moviesSection');
+        if (moviesSection) {
+            const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
+            if (moviesColumnContainer) {
+                moviesColumnContainer.scrollTop = 0;
+            }
+        }
+    }, 0);
     
     // 필터링된 영화가 있으면 첫 번째 영화를 메인으로 표시
     if (sortedMovies.length > 0) {
