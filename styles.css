@@ -930,10 +930,11 @@ body {
     }
 }
 
-/* 웹 버전 - 사이드바 포스터 테두리 제거 */
+/* 웹 버전 - 사이드바 포스터 테두리 제거 및 크기 증가 */
 @media (min-width: 769px) {
     .movie-poster-container {
         border-radius: 0;
+        width: 90%; /* 포스터 크기 약간 증가 */
     }
 }
 
