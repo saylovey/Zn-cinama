@@ -79,15 +79,6 @@ async function fetchNowPlayingMovies() {
 }
 
 /**
- * 영화 데이터를 인기순으로 정렬합니다.
- * @param {Array} movies - 영화 데이터 배열
- * @returns {Array} 정렬된 영화 데이터 배열
- */
-function sortMoviesByPopularity(movies) {
-    return [...movies].sort((a, b) => b.popularity - a.popularity);
-}
-
-/**
  * 영화 데이터를 예매율순으로 정렬합니다.
  * @param {Array} movies - 영화 데이터 배열
  * @returns {Array} 정렬된 영화 데이터 배열
@@ -263,21 +254,19 @@ function resetPosterScroll() {
 
 /**
  * 탭을 전환합니다.
- * @param {string} tab - 'nowPlaying', 'popular', 또는 'booking'
+ * @param {string} tab - 'nowPlaying', 'booking', 또는 'rating'
  */
 function switchTab(tab) {
     currentTab = tab;
     
     // 탭 버튼 활성화 상태 변경
     const tabNowPlaying = document.getElementById('tabNowPlaying');
-    const tabPopular = document.getElementById('tabPopular');
     const tabBooking = document.getElementById('tabBooking');
     const tabRating = document.getElementById('tabRating');
     const sectionTitle = document.getElementById('sectionTitle');
     
     // 모든 탭 비활성화
     tabNowPlaying.classList.remove('active');
-    tabPopular.classList.remove('active');
     tabBooking.classList.remove('active');
     if (tabRating) tabRating.classList.remove('active');
     
@@ -286,11 +275,6 @@ function switchTab(tab) {
         tabNowPlaying.classList.add('active');
         if (sectionTitle) {
             sectionTitle.textContent = '현재 상영작';
-        }
-    } else if (tab === 'popular') {
-        tabPopular.classList.add('active');
-        if (sectionTitle) {
-            sectionTitle.textContent = '인기순';
         }
     } else if (tab === 'booking') {
         tabBooking.classList.add('active');
@@ -337,9 +321,7 @@ function applyFilters() {
     
     // 탭에 따라 정렬
     let sortedMovies = filteredMovies;
-    if (currentTab === 'popular') {
-        sortedMovies = sortMoviesByPopularity(filteredMovies);
-    } else if (currentTab === 'booking') {
+    if (currentTab === 'booking') {
         sortedMovies = sortMoviesByBooking(filteredMovies);
     } else if (currentTab === 'rating') {
         sortedMovies = sortMoviesByRating(filteredMovies);
