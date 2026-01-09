@@ -705,7 +705,7 @@ function setupAutoScroll() {
     
     let autoScrollInterval = null;
     let hoverScrollInterval = null;
-    const autoScrollSpeed = 0.3; // 자동 스크롤 속도 (천천히)
+    const autoScrollSpeed = 0.4; // 자동 스크롤 속도 (천천히)
     const baseScrollSpeed = 3; // 마우스 호버 시 기본 스크롤 속도
     const topScrollZone = 200; // 상단 자동 스크롤 영역
     const bottomScrollZone = 100; // 하단 자동 스크롤 영역
