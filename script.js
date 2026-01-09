@@ -255,6 +255,15 @@ function switchTab(tab) {
     
     // 영화 목록 재정렬 및 표시
     applyFilters();
+    
+    // 포스터 목록 스크롤을 맨 위로 리셋
+    const moviesSection = document.getElementById('moviesSection');
+    if (moviesSection) {
+        const moviesColumnContainer = moviesSection.querySelector('.movies-column-container');
+        if (moviesColumnContainer) {
+            moviesColumnContainer.scrollTop = 0;
+        }
+    }
 }
 
 /**
